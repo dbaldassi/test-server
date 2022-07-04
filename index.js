@@ -34,10 +34,12 @@ rest.use(Express.static("www"));
 
 // Load the demo handlers
 const handlers = {
-	"simulcast"	: require("./lib/simulcast.js"),
-	"transceivers"	: require("./lib/PeerConnectionServerDemo.js"),
-	"partyline"	: require("./lib/PartyLine.js"),
-	"twcc"		: require("./lib/twcc.js"),
+	"simulcast"	        : require("./lib/simulcast.js"),
+	"transceivers"	        : require("./lib/PeerConnectionServerDemo.js"),
+	"partyline"	        : require("./lib/PartyLine.js"),
+	"twcc"		        : require("./lib/twcc.js"),
+	"quic-relay"	        : require("./lib/quic-relay.js"),
+	"quic-relay-loopback"	: require("./lib/quic-relay-loopback.js"),
 };
 
 
@@ -49,7 +51,7 @@ function wss(server)
 		autoAcceptConnections: false
 	});
 
-	wssServer.on ("request", (request) => {
+	wssServer.on("request", (request) => {
 		//Get protocol for demo
 		var protocol = request.requestedProtocols[0];
 
