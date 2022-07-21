@@ -40,6 +40,7 @@ const handlers = {
 	"twcc"		        : require("./lib/twcc.js"),
 	"quic-relay"	        : require("./lib/quic-relay.js"),
 	"quic-relay-loopback"	: require("./lib/quic-relay-loopback.js"),
+	"port"	                : require("./lib/port.js"),
 };
 
 
