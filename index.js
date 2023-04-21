@@ -24,8 +24,8 @@ MediaServer.setPortRange(10000,10100);
 const endpoint = MediaServer.createEndpoint(ip);
 
 //Enable debug
-MediaServer.enableDebug(true);
-MediaServer.enableUltraDebug(true);
+MediaServer.enableDebug(false);
+MediaServer.enableUltraDebug(false);
 
 //Create rest api
 const rest = Express();
