@@ -41,6 +41,7 @@ const handlers = {
 	"quic-relay"	        : require("./lib/quic-relay.js"),
 	"quic-relay-loopback"	: require("./lib/quic-relay-loopback.js"),
 	"port"	                : require("./lib/port.js"),
+	"vm-relay"	        : require("./lib/vm-relay.js"),
 };
 
 
