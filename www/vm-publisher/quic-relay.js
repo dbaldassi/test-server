@@ -126,6 +126,7 @@ function start()
 {
     //Connect with websocket
     const ws = new WebSocket(url, "vm-relay");
+    var ws_report = undefined;
     
     //Crete transaction manager 
     const tm = new TransactionManager(ws);
@@ -162,6 +163,16 @@ function start()
 		type: 'answer',
 		sdp: ans.answer
 	    }));
+
+	    ws_report = new WebSocket("wss://134.59.133.57:9000");
+	    ws_report.onopen = () => {
+		console.log("ws report open");
+		ws_report.send(JSON.stringify({ cmd : "new_publisher" }));
+	    };
+	}
+	if(ans.viewer_count) {
+	    console.log(`viewer count : ${ans.viewer_count}`);
+	    ws_report.send(JSON.stringify({ cmd: "viewer_count", count: ans.viewer_count }));
 	}
     };
 

@@ -4,6 +4,7 @@ const FS			= require("fs");
 const HTTPS			= require("https");
 const Path			= require("path");
 const WebSocketServer		= require ("websocket").server;
+const WebSocketClient           = require ("websocket").client;
 
 //Get the Medooze Media Server interface
 const MediaServer = require("medooze-media-server");
@@ -64,7 +65,7 @@ function wss(server)
 			return request.reject ();
 
 		//Process it
-		handlers[protocol] (request, protocol, endpoint);
+	    handlers[protocol] (request, protocol, endpoint);
 	});
 }
 
@@ -86,14 +87,26 @@ if (letsencrypt)
 		key	: FS.readFileSync ("server.key"),
 		cert	: FS.readFileSync ("server.cert")
 	};
-	
+
 	//Manualy starty server
 	const server = HTTPS.createServer (options, rest).listen(PORT);
-	
+
 	//Launch wss server
 	wss(server);
 }
 
+let client = new WebSocketClient({ tlsOptions: { rejectUnauthorized: false }});
+
+client.on('connectFailed', function(error) {
+	console.log('Connect Error: ' + error.toString());
+});
+
+client.on('connect', function(connection) {
+	console.log("Connect");
+	connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
+});
+
+client.connect('wss://134.59.133.57:9000');
 
 //Try to clean up on exit
 const onExit = (e) => {
