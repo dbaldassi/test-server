@@ -99,10 +99,11 @@ function start_stats()
 				gauges[i].animationSpeed = 10000000; // set animation speed (32 is default value)
 
 			let bitrate_value = Math.min(Math.floor(kbps), 2000);
+			let fps_value = Math.min(Math.floor(fps),30);
 		
 			gauges[0].set(width);
 			gauges[1].set(height);
-			gauges[2].set(Math.min(Math.floor(fps)   ,30));
+			gauges[2].set(fps_value);
 			gauges[3].set(bitrate_value);
 
 			texts[0].innerText = width;
