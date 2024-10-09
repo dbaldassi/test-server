@@ -6,6 +6,8 @@ const turn = href.searchParams.get("turn");
 const turnUsername = href.searchParams.get("turnUsername"); 
 const turnCredential = href.searchParams.get("turnCredential"); 
 
+var ws_report = undefined;
+
 var opts = {
     lines: 12, // The number of lines to draw
     angle: 0.15, // The length of each line
@@ -30,10 +32,10 @@ for (var i=0;i<targets.length;++i)
     gauges[i].animationSpeed = 10000; // set animation speed (32 is default value)
     gauges[i].set (0); // set actual value
 }
-gauges[0].maxValue = 1280; 
-gauges[1].maxValue = 720; 
+gauges[0].maxValue = 1920; 
+gauges[1].maxValue = 1080; 
 gauges[2].maxValue = 30; 
-gauges[3].maxValue = 1024; 
+gauges[3].maxValue = 2000; 
 
 var texts =  document.querySelectorAll('.gaugeChartLabel');
 var ssrcs;
@@ -54,14 +56,13 @@ function addVideoForStream(stream,muted)
     video.muted = muted;
 }
 
-function addRemoteTrack(event) 
+function start_stats() 
 {
+	console.log('start_stats');
     var prev = 0,prevFrames = 0,prevBytes = 0;
-    console.debug("ontrack", event);
-    const stream = event.streams[0];
-    //Play it
-    addVideoForStream(stream);
-    //Get track
+
+	const video = document.querySelector ("#remote");
+	const stream = video.srcObject;
     var track = stream.getVideoTracks()[0];
     //Update stats
     let interval = setInterval(async function(){
@@ -75,38 +76,45 @@ function addRemoteTrack(event)
 	    results = await pc.getStats();
 	}
 	//Get results
-	for (let result of results.values())
-	{
-	    if (result.type==="outbound-rtp")
-	    {
-		//Get timestamp delta
-		var delta = result.timestamp-prev;
-		//Store this ts
-		prev = result.timestamp;
+	for (let result of results.values()) {
+	    if (result.type==="outbound-rtp") {
+			console.log("here");
+			//Get timestamp delta
+			var delta = result.timestamp - prev;
+			//Store this ts
+			prev = result.timestamp;
 
-		//Get values
-		var width = track.width || remote.videoWidth;//result.stat("googFrameWidthReceived");
-		var height = track.height || remote.videoHeight;//result.stat("googFrameHeightReceived");
-		var fps =  (result.framesDecoded-prevFrames)*1000/delta;
-		var kbps = (result.bytesReceived-prevBytes)*8/delta;
-		//Store last values
-		prevFrames = result.framesDecoded;
-		prevBytes  = result.bytesReceived;
-		//If first
-		if (delta==result.timestamp || isNaN(fps) || isNaN (kbps))
-		    return;
+			//Get values
+			var width = result.frameWidth;
+			var height = result.frameHeight;
+			var fps =  (result.framesSent - prevFrames) * 1000 / delta;
+			var kbps = (result.bytesSent - prevBytes) * 8 / delta;
+			//Store last values
+			prevFrames = result.framesSent;
+			prevBytes  = result.bytesSent;
+			//If first
+			if (delta == result.timestamp || isNaN(fps) || isNaN (kbps)) return;
 
-		for (var i=0;i<targets.length;++i)
-		    gauges[i].animationSpeed = 10000000; // set animation speed (32 is default value)
-		gauges[0].set(width);
-		gauges[1].set(height);
-		gauges[2].set(Math.min(Math.floor(fps)   ,30));
-		gauges[3].set(Math.min(Math.floor(kbps) ,1024));
-		texts[0].innerText = width;
-		texts[1].innerText = height;
-		texts[2].innerText = Math.floor(fps);
-		texts[3].innerText =  Math.floor(kbps);
-	    }
+			for (var i=0;i<targets.length;++i)
+				gauges[i].animationSpeed = 10000000; // set animation speed (32 is default value)
+
+			let bitrate_value = Math.min(Math.floor(kbps), 2000);
+		
+			gauges[0].set(width);
+			gauges[1].set(height);
+			gauges[2].set(Math.min(Math.floor(fps)   ,30));
+			gauges[3].set(bitrate_value);
+
+			texts[0].innerText = width;
+			texts[1].innerText = height;
+			texts[2].innerText = Math.floor(fps);
+			texts[3].innerText =  Math.floor(kbps);
+
+			if(ws_report) {
+				console.log("send");
+				ws_report.send(JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
+			}
+ 	    }
 	}
     }, 1000);
 
@@ -126,8 +134,7 @@ function start()
 {
     //Connect with websocket
     const ws = new WebSocket(url, "vm-relay");
-    var ws_report = undefined;
-    
+
     //Crete transaction manager 
     const tm = new TransactionManager(ws);
 
@@ -156,7 +163,7 @@ function start()
 	document.querySelector('#close').style.display = "initial";
     };
 
-    ws.onmessage = async (msg) => {
+    ws.onmessage = (msg) => {
 	let ans = JSON.parse(msg.data);
 	if(ans.answer) {
 	    pc.setRemoteDescription(new RTCSessionDescription({
@@ -169,6 +176,8 @@ function start()
 		console.log("ws report open");
 		ws_report.send(JSON.stringify({ cmd : "new_publisher" }));
 	    };
+
+		start_stats();
 	}
 	if(ans.viewer_count) {
 	    console.log(`viewer count : ${ans.viewer_count}`);
