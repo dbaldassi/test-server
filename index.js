@@ -1,10 +1,11 @@
-const Express			= require("express");
-const CORS 			= require("cors");
-const FS			= require("fs");
-const HTTPS			= require("https");
-const Path			= require("path");
-const WebSocketServer		= require ("websocket").server;
-const WebSocketClient           = require ("websocket").client;
+const Express          = require("express");
+const CORS             = require("cors");
+const FS               = require("fs");
+const HTTPS            = require("https");
+const Path             = require("path");
+const WebSocketServer  = require ("websocket").server;
+const WebSocketClient  = require ("websocket").client;
+const os               = require("os");
 
 //Get the Medooze Media Server interface
 const MediaServer = require("medooze-media-server");
@@ -104,6 +105,23 @@ client.on('connectFailed', function(error) {
 client.on('connect', function(connection) {
 	console.log("Connect");
 	connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
+
+	var count = 0
+
+	setInterval(function() {
+		let obj = {
+			cmd : "vm_stats",
+			stats : {
+				"time": count,
+				"freemem": os.freemem(),
+				"totalmem": os.totalmem()
+			}
+		};
+
+		connection.sendUTF(JSON.stringify(obj));
+
+		count += 500;
+	}, 500);
 });
 
 client.connect('wss://134.59.133.57:9000');
