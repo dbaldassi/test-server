@@ -147,7 +147,7 @@ function start()
     
     //Start on open
     ws.onopen = async () => {
-	const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+	const stream = await navigator.mediaDevices.getUserMedia({ video: true});
 	addVideoForStream(stream, false);
 	
 	//Create new managed pc 

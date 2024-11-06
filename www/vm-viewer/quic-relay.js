@@ -6,6 +6,9 @@ const turn = href.searchParams.get("turn");
 const turnUsername = href.searchParams.get("turnUsername"); 
 const turnCredential = href.searchParams.get("turnCredential"); 
 
+var ws_report = false;
+var viewer_id = undefined;
+
 var opts = {
     lines: 12, // The number of lines to draw
     angle: 0.15, // The length of each line
@@ -77,7 +80,7 @@ function addRemoteTrack(event)
 	//Get results
 	for (let result of results.values())
 	{
-	    if (result.type==="inbound-rtp")
+	    if (result.type === "inbound-rtp")
 	    {
 		//Get timestamp delta
 		var delta = result.timestamp-prev;
@@ -87,8 +90,17 @@ function addRemoteTrack(event)
 		//Get values
 		var width = track.width || remote.videoWidth;//result.stat("googFrameWidthReceived");
 		var height = track.height || remote.videoHeight;//result.stat("googFrameHeightReceived");
-		var fps =  (result.framesDecoded-prevFrames)*1000/delta;
+		var fps = (result.framesDecoded-prevFrames)*1000/delta;
 		var kbps = (result.bytesReceived-prevBytes)*8/delta;
+
+		if(ws_report) {
+			ws_report.send(JSON.stringify({ cmd : "viewerbitrate", 
+				name: viewer_id, 
+				bitrate: kbps,
+				fps: fps
+			}));
+		}
+
 		//Store last values
 		prevFrames = result.framesDecoded;
 		prevBytes  = result.bytesReceived;
@@ -161,28 +173,33 @@ function start()
 
     ws.onmessage = async (msg) => {
 	let ans = JSON.parse(msg.data);
-	if(ans.answer) {
-	    pc.setRemoteDescription(new RTCSessionDescription({
-		type: 'answer',
-		sdp: ans.answer
-	    }));
-	}
+		if(ans.answer) {
+			pc.setRemoteDescription(new RTCSessionDescription({
+				type: 'answer',
+				sdp: ans.answer
+			}));
+
+			viewer_id = ans.name;
+
+			ws_report = new WebSocket("wss://134.59.133.57:9000");
+	    	ws_report.onopen = () => {
+				console.log("ws report open");
+				ws_report.send(JSON.stringify({ cmd : "new_viewer", name: ans.name }));
+			}
+		}
+		
+		else if(ans.target) {
+			if(ws_report) {
+				ws_report.send(JSON.stringify({ cmd : "viewertarget", 
+					name: ans.name, 
+					target: ans.target
+				}));
+			}
+		}
+
     };
 
-    ws.onclose = async () =>{
-	//Create urls
-	const csvUrl = "https://" + window.location.hostname + ":" + window.location.port + csv;
-	const bweUrl = "https://medooze.github.io/bwe-stats-viewer/?url=" + encodeURIComponent(csvUrl);
-
-	const div = document.createElement("div");
-	div.innerHTML = "<a href='" + bweUrl + "'>BWE viewer</a>&nbsp;<a href='" + csvUrl + "'>Download CSV</a>";
-	document.body.appendChild(div);
-	const iframe = document.createElement("iframe");
-	iframe.src = bweUrl;
-	iframe.height = "100%";
-	document.body.appendChild(iframe);
-	document.body.removeChild(document.body.children[0]);
-    };
+    ws.onclose = async () => {};
 
     document.querySelector('#close').addEventListener("click", () => { pc.close(); ws.close(); });
 };
