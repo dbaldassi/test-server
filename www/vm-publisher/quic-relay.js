@@ -186,20 +186,7 @@ function start()
 	}
     };
 
-    ws.onclose = async () =>{
-	//Create urls
-	const csvUrl = "https://" + window.location.hostname + ":" + window.location.port + csv;
-	const bweUrl = "https://medooze.github.io/bwe-stats-viewer/?url=" + encodeURIComponent(csvUrl);
-
-	const div = document.createElement("div");
-	div.innerHTML = "<a href='" + bweUrl + "'>BWE viewer</a>&nbsp;<a href='" + csvUrl + "'>Download CSV</a>";
-	document.body.appendChild(div);
-	const iframe = document.createElement("iframe");
-	iframe.src = bweUrl;
-	iframe.height = "100%";
-	document.body.appendChild(iframe);
-	document.body.removeChild(document.body.children[0]);
-    };
+    ws.onclose = async () => {};
 
     document.querySelector('#close').addEventListener("click", () => { pc.close(); ws.close(); });
 };
