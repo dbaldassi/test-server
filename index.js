@@ -46,7 +46,6 @@ const handlers = {
 	"vm-relay"	        : require("./lib/vm-relay.js"),
 };
 
-
 function wss(server)
 {
 	//Create websocket server

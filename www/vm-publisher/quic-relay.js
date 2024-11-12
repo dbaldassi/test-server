@@ -98,8 +98,8 @@ function start_stats()
 			for (var i=0;i<targets.length;++i)
 				gauges[i].animationSpeed = 10000000; // set animation speed (32 is default value)
 
-			let bitrate_value = Math.min(Math.floor(kbps), 2000);
-			let fps_value = Math.min(Math.floor(fps),30);
+			let bitrate_value = Math.floor(kbps);
+			let fps_value = Math.floor(fps);
 		
 			gauges[0].set(width);
 			gauges[1].set(height);
@@ -112,7 +112,7 @@ function start_stats()
 			texts[3].innerText =  Math.floor(kbps);
 
 			if(ws_report) {
-				console.log("send");
+				console.log("send : ", JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
 				ws_report.send(JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
 			}
  	    }
