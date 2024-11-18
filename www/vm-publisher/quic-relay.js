@@ -147,16 +147,37 @@ function start()
     
     //Start on open
     ws.onopen = async () => {
-	const stream = await navigator.mediaDevices.getUserMedia({ video: true});
+	// const supported = navigator.mediaDevices.getSupportedConstraints();
+	// console.log(supported);
+
+	const stream = await navigator.mediaDevices.getUserMedia({ "video": true });
+	// console.log(stream);
+
 	addVideoForStream(stream, false);
 	
+	ws_report = new WebSocket("wss://134.59.133.57:9000");
+	ws_report.onopen = () => { console.log("ws report open"); };
+
 	//Create new managed pc 
 	pc = new RTCPeerConnection();
 	pc.addEventListener('icecandidate', e => console.log(e));
+	pc.addEventListener("connectionstatechange", (event) => {
+		console.log(pc.connectionState);
+		if(ws_report) {
+			ws_report.send(JSON.stringify({cmd: "publisher_pc_state", state: pc.connectionState}));
+		}
+	});
 
-	stream.getTracks().forEach(track => pc.addTrack(track, stream));
+	stream.getTracks().forEach(async track => {
+		const sender = await pc.addTrack(track, stream);
+		const params = sender.getParameters();
+		params.encodings[0].maxBitrate = 2500000; // 2.5 mbits
+		await sender.setParameters(params);
+	});
 	
 	const offer = await pc.createOffer();
+	console.log(offer);
+
 	await pc.setLocalDescription(offer);
 
 	ws.send(JSON.stringify({ cmd: "publish", offer: offer.sdp }));
@@ -172,11 +193,7 @@ function start()
 		sdp: ans.answer
 	    }));
 
-	    ws_report = new WebSocket("wss://134.59.133.57:9000");
-	    ws_report.onopen = () => {
-		console.log("ws report open");
 		ws_report.send(JSON.stringify({ cmd : "new_publisher" }));
-	    };
 
 		start_stats();
 	}
@@ -186,7 +203,19 @@ function start()
 	}
     };
 
-    ws.onclose = async () => {};
+    ws.onclose = async () => {
+		pc.close();
+		pc = undefined;
+		
+		if(ws_report) {
+			ws_report.close();
+			ws_report = undefined;
+		}
+
+		stream.getTracks().forEach(function(track) {
+			track.stop();
+		});
+	};
 
     document.querySelector('#close').addEventListener("click", () => { pc.close(); ws.close(); });
 };

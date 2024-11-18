@@ -46,6 +46,9 @@ const handlers = {
 	"vm-relay"	        : require("./lib/vm-relay.js"),
 };
 
+let client = new WebSocketClient({ tlsOptions: { rejectUnauthorized: false }});
+let client_connection = undefined;
+
 function wss(server)
 {
 	//Create websocket server
@@ -65,7 +68,7 @@ function wss(server)
 			return request.reject ();
 
 		//Process it
-	    handlers[protocol] (request, protocol, endpoint);
+	    handlers[protocol] (request, protocol, endpoint, client_connection);
 	});
 }
 
@@ -95,8 +98,6 @@ if (letsencrypt)
 	wss(server);
 }
 
-let client = new WebSocketClient({ tlsOptions: { rejectUnauthorized: false }});
-
 client.on('connectFailed', function(error) {
 	console.log('Connect Error: ' + error.toString());
 });
@@ -104,6 +105,7 @@ client.on('connectFailed', function(error) {
 client.on('connect', function(connection) {
 	console.log("Connect");
 	connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
+	client_connection = connection;
 
 	var count = 0
 

@@ -172,7 +172,7 @@ function start()
     };
 
     ws.onmessage = async (msg) => {
-	let ans = JSON.parse(msg.data);
+		let ans = JSON.parse(msg.data);
 		if(ans.answer) {
 			pc.setRemoteDescription(new RTCSessionDescription({
 				type: 'answer',
