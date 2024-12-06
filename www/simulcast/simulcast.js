@@ -6,7 +6,11 @@ const reverse = href.searchParams.has("reverse");
 const strictW3C = href.searchParams.has("strictW3C");
 const forceSDPMunging = href.searchParams.has("forceSDPMunging");
 
-
+// videoResolution = false;
+videoResolution = {
+	width: { min: 1920, max: 1920 },
+	height: { min: 1080, max: 1080 },
+}
 if (href.searchParams.has("video"))
 	switch (href.searchParams.get("video").toLowerCase())
 	{
@@ -40,7 +44,7 @@ if (href.searchParams.has("video"))
 				height: { min: 2160, max: 2160 },
 			};
 			break;
-		case "no":
+		default:
 			videoResolution = false;
 			break;
 	}

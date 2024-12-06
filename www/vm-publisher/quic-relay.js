@@ -59,7 +59,7 @@ function addVideoForStream(stream,muted)
 function start_stats() 
 {
 	console.log('start_stats');
-    var prev = 0,prevFrames = 0,prevBytes = 0;
+    var prev,prevFrames = 0,prevBytes = 0;
 
 	const video = document.querySelector ("#remote");
 	const stream = video.srcObject;
@@ -68,21 +68,34 @@ function start_stats()
     let interval = setInterval(async function(){
 	var results;
 
-	try {
+	/*try {
 	    //For ff
 	    results = await pc.getStats(track);
 	} catch(e) {
 	    //For chrome
 	    results = await pc.getStats();
-	}
+	}*/
+
+	let senders = pc.getSenders();
+	let kbps_total = 0;
+
+	for(let sender of senders) {
+		results = await sender.getStats();
+		// console.log("Timestamp");
 	//Get results
-	for (let result of results.values()) {
+	results.forEach(result => {
 	    if (result.type==="outbound-rtp") {
-			console.log("here");
+			if(result.isRemote) return;
+			// console.log("here");
 			//Get timestamp delta
-			var delta = result.timestamp - prev;
+
+			if (prev && prev.has(result.id)) {
+
 			//Store this ts
-			prev = result.timestamp;
+			// prev = result.timestamp;
+			var delta = result.timestamp - prev.get(result.id).timestamp;
+			prevBytes = prev.get(result.id).bytesSent;
+			prevFrames = prev.get(result.id).framesSent;
 
 			//Get values
 			var width = result.frameWidth;
@@ -90,8 +103,8 @@ function start_stats()
 			var fps =  (result.framesSent - prevFrames) * 1000 / delta;
 			var kbps = (result.bytesSent - prevBytes) * 8 / delta;
 			//Store last values
-			prevFrames = result.framesSent;
-			prevBytes  = result.bytesSent;
+			// prevFrames = result.framesSent;
+			// prevBytes  = result.bytesSent;
 			//If first
 			if (delta == result.timestamp || isNaN(fps) || isNaN (kbps)) return;
 
@@ -100,22 +113,30 @@ function start_stats()
 
 			let bitrate_value = Math.floor(kbps);
 			let fps_value = Math.floor(fps);
+
+			console.log(bitrate_value);
+
+			kbps_total += bitrate_value;
 		
 			gauges[0].set(width);
 			gauges[1].set(height);
 			gauges[2].set(fps_value);
-			gauges[3].set(bitrate_value);
-
+			
 			texts[0].innerText = width;
 			texts[1].innerText = height;
 			texts[2].innerText = Math.floor(fps);
-			texts[3].innerText =  Math.floor(kbps);
-
-			if(ws_report) {
-				console.log("send : ", JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
-				ws_report.send(JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
 			}
  	    }
+	});
+		prev = results;
+
+	}
+
+	gauges[3].set(kbps_total);
+	texts[3].innerText =  Math.floor(kbps_total);
+	if(ws_report) {
+		// console.log("send : ", JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
+		ws_report.send(JSON.stringify({cmd: "publisher_bitrate", bitrate: kbps_total }));
 	}
     }, 1000);
 
@@ -130,6 +151,22 @@ if (!autostart) {
     });
 }
 else window.onload = start();
+
+function preferCodec(codecs, mimeType) {
+	let otherCodecs = [];
+	let sortedCodecs = [];
+	let count = codecs.length;
+  
+	codecs.forEach((codec) => {
+	  if (codec.mimeType === mimeType) {
+		sortedCodecs.push(codec);
+	  } else {
+		// otherCodecs.push(codec);
+	  }
+	});
+  
+	return sortedCodecs.concat(otherCodecs);
+}
 
 function start()
 {
@@ -168,12 +205,61 @@ function start()
 		}
 	});
 
-	stream.getTracks().forEach(async track => {
+	/*stream.getTracks().forEach(async track => {
 		const sender = await pc.addTrack(track, stream);
 		const params = sender.getParameters();
 		params.encodings[0].maxBitrate = 2500000; // 2.5 mbits
+
+		console.log(params.encodings, params.encodings.length);
+
 		await sender.setParameters(params);
+	});*/
+
+	/*let send_encodings = [
+		{rid: 'q', scaleResolutionDownBy: 4.0 },
+		{rid: 'h', scaleResolutionDownBy: 2.0 },
+		{rid: 'f' }
+	  ];*/
+
+	/*let send_encodings = [
+	{rid: 'q', scaleResolutionDownBy: 4.0, maxBitrate: 500000 },
+	{rid: 'm', scaleResolutionDownBy: 2.0, maxBitrate: 1000000 },
+	{rid: 'h', maxBitrate: 2500000 }
+	];*/
+	  
+	/*let send_encodings = [
+	{rid: 'q', scaleResolutionDownBy: 4.0, scalabilityMode: 'L1T3'},
+	{rid: 'h', scaleResolutionDownBy: 2.0, scalabilityMode: 'L1T3' },
+	{rid: 'f', scalabilityMode: 'L1T3'}
+	];*/
+
+	let send_encodings = [
+		{ scalabilityMode: 'S3T3' }
+	]
+
+	/*let send_encodings = [
+		{ maxBitrate: 2500000 }
+	];*/
+
+	console.log(stream.getVideoTracks());
+	let transceiver = pc.addTransceiver(stream.getVideoTracks()[0], {
+		direction: 'sendonly',
+		sendEncodings: send_encodings
 	});
+
+	const kind = transceiver.sender.track.kind;
+    let sendCodecs = RTCRtpSender.getCapabilities(kind).codecs;
+    let recvCodecs = RTCRtpReceiver.getCapabilities(kind).codecs;
+
+    if (kind === "video") {
+	  const mimeType = "video/H264";
+
+      sendCodecs = preferCodec(sendCodecs, mimeType);
+      recvCodecs = preferCodec(recvCodecs, mimeType);
+		console.log(sendCodecs, recvCodecs);
+
+      // transceiver.setCodecPreferences([...sendCodecs, ...recvCodecs]);
+    }
 	
 	const offer = await pc.createOffer();
 	console.log(offer);
@@ -188,6 +274,7 @@ function start()
     ws.onmessage = (msg) => {
 	let ans = JSON.parse(msg.data);
 	if(ans.answer) {
+		console.log(ans.answer);
 	    pc.setRemoteDescription(new RTCSessionDescription({
 		type: 'answer',
 		sdp: ans.answer
@@ -212,10 +299,10 @@ function start()
 			ws_report = undefined;
 		}
 
-		stream.getTracks().forEach(function(track) {
+		stream?.getTracks().forEach(function(track) {
 			track.stop();
 		});
 	};
 
-    document.querySelector('#close').addEventListener("click", () => { pc.close(); ws.close(); });
+    // document.querySelector('#close').addEventListener("click", () => { pc.close(); ws.close(); });
 };
