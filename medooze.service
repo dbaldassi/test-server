@@ -1,0 +1,12 @@
+[Unit]
+Description=Service to run medooze media serevr
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ap/test-server-uptodate
+ExecStart=/home/ap/.nvm/versions/node/v20.18.0/bin/node . 134.59.133.76
+User=ap
+
+[Install]
+WantedBy=multi-user.target
