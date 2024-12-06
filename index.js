@@ -6,6 +6,8 @@ const Path             = require("path");
 const WebSocketServer  = require ("websocket").server;
 const WebSocketClient  = require ("websocket").client;
 const os               = require("os");
+const osutils          = require("os-utils");
+const { exec } = require('node:child_process')
 
 //Get the Medooze Media Server interface
 const MediaServer = require("medooze-media-server");
@@ -58,10 +60,14 @@ function wss(server)
 	});
 
 	wssServer.on("request", (request) => {
+		request.on('requestAccepted', () => console.log('Request accepted'));
+		request.on('requestRejected', () => console.log('Request rejected'));
+
 		//Get protocol for demo
 		var protocol = request.requestedProtocols[0];
 
 		console.log ("-Got request for: " + protocol);
+		// console.log (request);
 		//If nor found
 		if (!handlers.hasOwnProperty (protocol))
 			//Reject connection
@@ -98,6 +104,63 @@ if (letsencrypt)
 	wss(server);
 }
 
+function get_cpu_usage(count, connection) {
+	osutils.cpuUsage(function(usage) {
+		// console.log(usage);
+		let obj = {
+			cmd : "vm_stats",
+			stats : {
+				"time": count,
+				"cpu": usage, 
+				"freemem": os.freemem(),
+				"totalmem": os.totalmem()
+			}
+		};		
+
+		connection.sendUTF(JSON.stringify(obj));		
+	});
+}
+
+function get_iplink_stats(count, connection) {
+	exec('ip -s link show enp8s0', (err, output) => {
+		if (err) {
+			console.error("could not execute command: ", err);
+			return;
+		}
+
+		// console.log("Output: \n", output);
+
+		const BYTES = 0, PACKET = 1, ERRORS = 2, DROPPED = 3, MISSED = 4, MCAST = 5;
+
+		let report = {
+			cmd: "iplink_stats",
+			rx : {},
+			tx : {}
+		};
+
+		let lines = output.split('\n');
+		lines = lines.slice(3);
+		const rx = lines.shift();
+		lines.shift();
+		const tx = lines.shift();
+
+		let rx_values = rx.replace(/\s+/g, ' ').trim().split(' ');
+		report.rx.packet = rx_values[PACKET];
+		report.rx.dropped = rx_values[DROPPED];
+		report.rx.errors = rx_values[ERRORS];
+		report.rx.missed = rx_values[MISSED];
+
+		let tx_values = tx.replace(/\s+/g, ' ').trim().split(' ');
+		report.tx.packet = tx_values[PACKET];
+		report.tx.dropped = tx_values[DROPPED];
+		report.tx.errors = tx_values[ERRORS];
+		report.tx.missed = tx_values[MISSED];
+
+		// console.log(report);
+		connection.sendUTF(JSON.stringify(report));
+	})	
+}
+
 client.on('connectFailed', function(error) {
 	console.log('Connect Error: ' + error.toString());
 });
@@ -110,16 +173,8 @@ client.on('connect', function(connection) {
 	var count = 0
 
 	setInterval(function() {
-		let obj = {
-			cmd : "vm_stats",
-			stats : {
-				"time": count,
-				"freemem": os.freemem(),
-				"totalmem": os.totalmem()
-			}
-		};
-
-		connection.sendUTF(JSON.stringify(obj));
+		get_cpu_usage(count, connection);
+		get_iplink_stats(count, connection);
 
 		count += 500;
 	}, 500);
