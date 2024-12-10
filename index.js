@@ -167,7 +167,7 @@ client.on('connectFailed', function(error) {
 
 client.on('connect', function(connection) {
 	console.log("Connect");
-	connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
+	// connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
 	client_connection = connection;
 
 	var count = 0
@@ -180,7 +180,7 @@ client.on('connect', function(connection) {
 	}, 500);
 });
 
-client.connect('wss://134.59.133.57:9000');
+client.connect('wss://134.59.133.57:9000', 'medooze');
 
 //Try to clean up on exit
 const onExit = (e) => {

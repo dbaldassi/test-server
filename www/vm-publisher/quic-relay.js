@@ -136,7 +136,7 @@ function start_stats()
 	texts[3].innerText =  Math.floor(kbps_total);
 	if(ws_report) {
 		// console.log("send : ", JSON.stringify({cmd: "publisher_bitrate", bitrate: bitrate_value }));
-		ws_report.send(JSON.stringify({cmd: "publisher_bitrate", bitrate: kbps_total }));
+		ws_report.send(JSON.stringify({cmd: "bitrate", bitrate: kbps_total }));
 	}
     }, 1000);
 
@@ -192,7 +192,7 @@ function start()
 
 	addVideoForStream(stream, false);
 	
-	ws_report = new WebSocket("wss://134.59.133.57:9000");
+	ws_report = new WebSocket("wss://134.59.133.57:9000", "publisher");
 	ws_report.onopen = () => { console.log("ws report open"); };
 
 	//Create new managed pc 
@@ -201,7 +201,7 @@ function start()
 	pc.addEventListener("connectionstatechange", (event) => {
 		console.log(pc.connectionState);
 		if(ws_report) {
-			ws_report.send(JSON.stringify({cmd: "publisher_pc_state", state: pc.connectionState}));
+			ws_report.send(JSON.stringify({cmd: "pc_state", state: pc.connectionState}));
 		}
 	});
 
@@ -233,13 +233,13 @@ function start()
 	{rid: 'f', scalabilityMode: 'L1T3'}
 	];*/
 
-	let send_encodings = [
-		{ scalabilityMode: 'S3T3' }
-	]
-
 	/*let send_encodings = [
+		{ scalabilityMode: 'S3T3' }
+	]*/
+
+	let send_encodings = [
 		{ maxBitrate: 2500000 }
-	];*/
+	];
 
 	console.log(stream.getVideoTracks());
 	let transceiver = pc.addTransceiver(stream.getVideoTracks()[0], {
@@ -247,9 +247,9 @@ function start()
 		sendEncodings: send_encodings
 	});
 
-	const kind = transceiver.sender.track.kind;
-    let sendCodecs = RTCRtpSender.getCapabilities(kind).codecs;
-    let recvCodecs = RTCRtpReceiver.getCapabilities(kind).codecs;
+	/*const kind = transceiver.sender.track.kind;
+	let sendCodecs = RTCRtpSender.getCapabilities(kind).codecs;
+	let recvCodecs = RTCRtpReceiver.getCapabilities(kind).codecs;
 
     if (kind === "video") {
 	  const mimeType = "video/H264";
@@ -258,8 +258,8 @@ function start()
       recvCodecs = preferCodec(recvCodecs, mimeType);
 		console.log(sendCodecs, recvCodecs);
 
-      // transceiver.setCodecPreferences([...sendCodecs, ...recvCodecs]);
-    }
+	transceiver.setCodecPreferences([...sendCodecs, ...recvCodecs]);
+    }*/
 	
 	const offer = await pc.createOffer();
 	console.log(offer);
@@ -280,7 +280,7 @@ function start()
 		sdp: ans.answer
 	    }));
 
-		ws_report.send(JSON.stringify({ cmd : "new_publisher" }));
+		// ws_report.send(JSON.stringify({ cmd : "new_publisher" }));
 
 		start_stats();
 	}
