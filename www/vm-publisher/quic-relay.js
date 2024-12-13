@@ -25,7 +25,7 @@ for (var i=0;i<targets.length;++i)
 {
     gauges[i] = new Gauge(targets[i]).setOptions (opts); // create sexy gauge!
     gauges[i].animationSpeed = 10000; // set animation speed (32 is default value)
-    gauges[i].set (0); // set actual value
+    gauges[i].set(0); // set actual value
 }
 gauges[0].maxValue = 1920; 
 gauges[1].maxValue = 1080; 
@@ -70,6 +70,7 @@ function start_stats(pc)
 
 	let senders = pc.getSenders();
 	let kbps_total = 0;
+	let width_max = 0,height_max = 0, fps_max = 0;
 
 	for(let sender of senders) {
 		results = await sender.getStats();
@@ -77,54 +78,61 @@ function start_stats(pc)
 		results.forEach(result => {
 			if (result.type==="outbound-rtp") {
 				if(result.isRemote) return;
-				// console.log("here");
-				//Get timestamp delta
 
 				if (prev && prev.has(result.id)) {
+					//Store this ts
+					// prev = result.timestamp;
+					let delta = result.timestamp - prev.get(result.id).timestamp;
+					prevBytes = prev.get(result.id).bytesSent;
+					prevFrames = prev.get(result.id).framesSent;
 
-				//Store this ts
-				// prev = result.timestamp;
-				var delta = result.timestamp - prev.get(result.id).timestamp;
-				prevBytes = prev.get(result.id).bytesSent;
-				prevFrames = prev.get(result.id).framesSent;
+					//Get values
+					let width = result.frameWidth;
+					let height = result.frameHeight;
+					let fps =  (result.framesSent - prevFrames) * 1000 / delta;
+					let kbps = (result.bytesSent - prevBytes) * 8 / delta;
+					//Store last values
+					// prevFrames = result.framesSent;
+					// prevBytes  = result.bytesSent;
+					//If first
+					if (delta == result.timestamp || isNaN(fps) || isNaN (kbps)) return;
 
-				//Get values
-				var width = result.frameWidth;
-				var height = result.frameHeight;
-				var fps =  (result.framesSent - prevFrames) * 1000 / delta;
-				var kbps = (result.bytesSent - prevBytes) * 8 / delta;
-				//Store last values
-				// prevFrames = result.framesSent;
-				// prevBytes  = result.bytesSent;
-				//If first
-				if (delta == result.timestamp || isNaN(fps) || isNaN (kbps)) return;
+					for (let i=0;i<targets.length;++i)
+						gauges[i].animationSpeed = 10000000; // set animation speed (32 is default value)
 
-				for (var i=0;i<targets.length;++i)
-					gauges[i].animationSpeed = 10000000; // set animation speed (32 is default value)
+					let bitrate_value = Math.floor(kbps);
+					let fps_value = Math.floor(fps);
 
-				let bitrate_value = Math.floor(kbps);
-				let fps_value = Math.floor(fps);
-
-				console.log(bitrate_value);
-
-				kbps_total += bitrate_value;
-			
-				gauges[0].set(width);
-				gauges[1].set(height);
-				gauges[2].set(fps_value);
-				
-				texts[0].innerText = width;
-				texts[1].innerText = height;
-				texts[2].innerText = Math.floor(fps);
+					kbps_total += bitrate_value;
+									
+					width_max = Math.max(width_max, width);
+					height_max = Math.max(height_max, height);
+					fps_max = Math.max(fps_max, fps_value);
 				}
 			}
 		});
 		prev = results;
 	}
 
+	gauges[0].set(width_max);
+	gauges[1].set(height_max);
+	gauges[2].set(fps_max);
 	gauges[3].set(kbps_total);
+					
+	texts[0].innerText = width_max;
+	texts[1].innerText = height_max;
+	texts[2].innerText = Math.floor(fps_max);
 	texts[3].innerText =  Math.floor(kbps_total);
-	if(pc.report) pc.report.send(JSON.stringify({cmd: "bitrate", bitrate: kbps_total }));
+
+	if(pc.report) {
+		let cmd = {
+			cmd: 'bitrate',
+			bitrate: kbps_total,
+			fps: fps_max,
+			res: `${width_max}x${height_max}`
+		};
+		pc.report.send(JSON.stringify(cmd));
+	}
 
     }, 1000);
 
@@ -146,7 +154,7 @@ async function on_open(ws) {
 	const codec = href.searchParams.get("codec") ?? "vp8";
 	const max_bitrate = href.searchParams.get("max") ?? "2500";
 
-	console.log("Params : ", scenar, codec, max_bitrate)
+	console.log("Params : ", scenar, codec, max_bitrate, href.searchParams.get("scenar"));
 
 	// Create object to map peerconnection config function
 	const create_peerconnection = {
@@ -168,7 +176,7 @@ async function on_open(ws) {
 	pc.addEventListener("connectionstatechange", (event) => {
 		console.log(pc.connectionState);
 		// report it
-		if(pc.report) ws_report.send(JSON.stringify({cmd: "pc_state", state: pc.connectionState}));
+		if(pc.report) pc.report.send(JSON.stringify({cmd: "pc_state", state: pc.connectionState}));
 	});
 
 	// Send publish command to start pc negociation
@@ -188,8 +196,8 @@ function on_message(ws, msg) {
 	if(ans.answer) {
 		//Set remote description
 	    ws.pc.setRemoteDescription(new RTCSessionDescription({
-		type: 'answer',
-		sdp: ans.answer
+			type: 'answer',
+			sdp: ans.answer
 	    }));
 
 		// Open websocket to monitor to report stats

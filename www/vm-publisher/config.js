@@ -79,9 +79,9 @@ async function config_simulcast(stream, codec) {
     let pc = new RTCPeerConnection();
 
     let send_encodings = [
-		{rid: 'l', scaleResolutionDownBy: 4.0, scalabilityMode: 'L1T3' },
-		{rid: 'm', scaleResolutionDownBy: 2.0, scalabilityMode: 'L1T3' },
-		{rid: 'h', scalabilityMode: 'L1T3' }
+		{rid: 'l', scaleResolutionDownBy: 4.0, scalabilityMode: 'L1T1', maxBitrate: 800*1000 },
+		{rid: 'm', scaleResolutionDownBy: 2.0, scalabilityMode: 'L1T1', minBitrate: 700*1000, maxBitrate: 2000*1000 },
+		{rid: 'h', scalabilityMode: 'L1T1', minBitrate: 1800*1000, maxBitrate: 2500*1000 }
 	];
 
     let transceiver = pc.addTransceiver(stream.getVideoTracks()[0], {
@@ -91,6 +91,8 @@ async function config_simulcast(stream, codec) {
 
     if(codec) set_codec_preferences(transceiver, codec);
     const offer = await pc.createOffer();
+
+	console.log(offer);
 
 	await pc.setLocalDescription(offer);
 
