@@ -6,3 +6,7 @@
 build/
 *.cert
 *.key
+*~
+screenlog.0
+*DS_Store*
+process

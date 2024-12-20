@@ -7,6 +7,7 @@ const WebSocketServer  = require ("websocket").server;
 const WebSocketClient  = require ("websocket").client;
 const os               = require("os");
 const osutils          = require("os-utils");
+const ChildProcess     = require('child_process');
 const { exec } = require('node:child_process')
 
 //Get the Medooze Media Server interface
@@ -161,6 +162,12 @@ function get_iplink_stats(count, connection) {
 	})	
 }
 
+function spawn_process() {
+	console.log("Spawing process allocating memory");
+	const process_path = "/home/ap/test-server-uptodate/process";
+	ChildProcess.spawn(process_path, [], { detached: true });
+}
+
 client.on('connectFailed', function(error) {
 	console.log('Connect Error: ' + error.toString());
 });
@@ -169,6 +176,12 @@ client.on('connect', function(connection) {
 	console.log("Connect");
 	// connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
 	client_connection = connection;
+
+	connection.on('message', (message) => {
+		const msg = JSON.parse(message.utf8Data);
+
+		if(msg.cmd === "spawn") spawn_process();
+	});
 
 	var count = 0
 
