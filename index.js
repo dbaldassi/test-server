@@ -80,8 +80,7 @@ function wss(server)
 }
 
 //Create HTTP server
-if (letsencrypt)
-{
+if (letsencrypt) {
 	//Use greenlock to get ssl certificate
 	const gle = require("greenlock-express").init({
 			packageRoot: __dirname,
@@ -100,7 +99,6 @@ if (letsencrypt)
 
 	//Manualy starty server
 	const server = HTTPS.createServer (options, rest).listen(PORT);
-
 	//Launch wss server
 	wss(server);
 }
@@ -168,19 +166,38 @@ function spawn_process() {
 	ChildProcess.spawn(process_path, [], { detached: true });
 }
 
+function kill_process(count) {
+    ChildProcess.exec("ps -fauxwww | grep -e \"./process$\" | awk '{print $2}'", (err, out) => {
+	if(err) {
+	    console.error(err);
+	    return;
+	}
+		let pids = out.split('\n');
+		while(pids.length > 0 && count > 0) {
+			let num = Math.floor(Math.random() * (pids.length - 1));
+		    ChildProcess.exec(`kill -USR1 ${pids[num]}`, (error, output) => {
+				if(error) console.error(error);
+				else console.log(output);
+			});
+
+			--count; pids.splice(num, 1);
+		}
+	});
+}
+
 client.on('connectFailed', function(error) {
 	console.log('Connect Error: ' + error.toString());
 });
 
 client.on('connect', function(connection) {
 	console.log("Connect");
-	// connection.sendUTF(JSON.stringify({cmd: "iammedooze"}));
 	client_connection = connection;
 
 	connection.on('message', (message) => {
 		const msg = JSON.parse(message.utf8Data);
 
-		if(msg.cmd === "spawn") spawn_process();
+		if(msg.cmd === "spawn")     spawn_process();
+		else if(msg.cmd === "kill") kill_process(msg.count);
 	});
 
 	var count = 0

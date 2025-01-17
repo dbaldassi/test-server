@@ -72,6 +72,8 @@ function start_stats(pc)
 	let kbps_total = 0;
 	let width_max = 0,height_max = 0, fps_max = 0;
 
+	let rtt = 0, rtt_n = 0;
+
 	for(let sender of senders) {
 		results = await sender.getStats();
 		//Get results
@@ -110,6 +112,11 @@ function start_stats(pc)
 					fps_max = Math.max(fps_max, fps_value);
 				}
 			}
+			else if(result.type === "remote-inbound-rtp") {
+				let rttmp = result.roundTripTime * 1000; // convert in ms
+				rtt += Math.floor(rttmp);
+				rtt_n += 1;
+			}
 		});
 		prev = results;
 	}
@@ -129,12 +136,13 @@ function start_stats(pc)
 			cmd: 'bitrate',
 			bitrate: kbps_total,
 			fps: fps_max,
+			rtt: Math.floor(rtt / rtt_n),
 			res: `${width_max}x${height_max}`
 		};
 		pc.report.send(JSON.stringify(cmd));
 	}
 
-    }, 1000);
+    }, 500);
 
     //Stop stats on ended track
     track.addEventListener("ended", (event) =>	clearInterval(interval) );
@@ -147,6 +155,52 @@ if (!autostart) {
     });
 }
 else window.onload = start();
+
+function break_number(n) {
+	const size = 4;
+	let tab = [];
+
+	for(let i = 0; i < size; ++i) {
+		tab.push(n & 0xff);
+		n = n >> 8;
+	}
+
+	return tab;
+}
+
+async function transform(frame, controller) {
+	// Data should start with four bytes to signal the upcoming metadata at end of frame
+	const magic_value = [0xca, 0xfe, 0xba, 0xbe];
+
+	let now = Date.now();
+
+	const data = [
+		...magic_value,
+		...break_number(now)
+	];
+
+	// console.log(frame);
+
+	// Create DataView from Array buffer
+	const frame_length = frame.data.byteLength;
+	const buffer = new ArrayBuffer(frame_length + data.length);
+	const view_buffer = new DataView(buffer);
+	const view_frame = new DataView(frame.data);
+
+	// Copy old frame buffer to new frame buffer and then append the metadata
+	// at the end of the buffer
+	for (let i = 0; i < frame_length; ++i) {
+		view_buffer.setUint8(i, view_frame.getUint8(i));
+	}
+
+	data.forEach((elt, idx) => view_buffer.setUint8(frame_length + idx, elt));
+
+	// Set the new frame buffer
+	frame.data = buffer;
+
+	// Send the frame
+	controller.enqueue(frame);
+}
 
 async function on_open(ws) {
 	// Get url params
@@ -170,8 +224,18 @@ async function on_open(ws) {
 	// Add video to HTML element
 	addVideoForStream(stream, false);
 
+	// get video tracks
+	const videoTrack = stream.getVideoTracks()[0];
+
+	addEventListener("rtctransform", (event) => {
+		const transformer = new TransformStream({transform});
+		event.transformer.readable
+    		.pipeThrough(transformer)
+    		.pipeTo(event.transformer.writable);
+	});
+
 	// Create peerconnection according to selected scenar
-	const pc = await create_peerconnection[scenar](stream);
+	const pc = await create_peerconnection[scenar](videoTrack);
 	// Listen to connection state to report to monitor
 	pc.addEventListener("connectionstatechange", (event) => {
 		console.log(pc.connectionState);
@@ -179,6 +243,13 @@ async function on_open(ws) {
 		if(pc.report) pc.report.send(JSON.stringify({cmd: "pc_state", state: pc.connectionState}));
 	});
 
+	let sender = pc.getSenders()[0];
+  	const senderStreams = sender.createEncodedStreams();
+  	const transformStream = new TransformStream({ transform: transform  });
+ 	senderStreams.readable
+      .pipeThrough(transformStream)
+      .pipeTo(senderStreams.writable);
+  
 	// Send publish command to start pc negociation
 	ws.send(JSON.stringify({ cmd: "publish", offer: pc.localDescription.sdp }));
 

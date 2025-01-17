@@ -34,10 +34,10 @@ function set_codec_preferences(transceiver, codec) {
 ////////////// NORMAL //////////////////////////////
 ////////////////////////////////////////////////////
 
-async function config_normal(stream, codec) {
-    let pc = new RTCPeerConnection();
+async function config_normal(track, codec) {
+    let pc = new RTCPeerConnection({ encodedInsertableStreams: true });
 
-	let transceiver = pc.addTransceiver(stream.getVideoTracks()[0], { direction: 'sendonly' });
+	let transceiver = pc.addTransceiver(track, { direction: 'sendonly' });
 
 	if(codec) set_codec_preferences(transceiver, codec);
 	
@@ -53,12 +53,12 @@ async function config_normal(stream, codec) {
 ////////////// MAX BITRATE /////////////////////////
 ////////////////////////////////////////////////////
 
-async function config_max(stream, max, codec) {
-    let pc = new RTCPeerConnection();
+async function config_max(track, max, codec) {
+    let pc = new RTCPeerConnection({ encodedInsertableStreams: true });
 
     let send_encodings = [ { maxBitrate: max } ];
 
-	let transceiver = pc.addTransceiver(stream.getVideoTracks()[0], {
+	let transceiver = pc.addTransceiver(track, {
 		direction: 'sendonly',
 		sendEncodings: send_encodings
 	});
@@ -75,8 +75,8 @@ async function config_max(stream, max, codec) {
 ////////////// SIMULCAST ///////////////////////////
 ////////////////////////////////////////////////////
 
-async function config_simulcast(stream, codec) {
-    let pc = new RTCPeerConnection();
+async function config_simulcast(track, codec) {
+    let pc = new RTCPeerConnection({ encodedInsertableStreams: true });
 
     let send_encodings = [
 		{rid: 'l', scaleResolutionDownBy: 4.0, scalabilityMode: 'L1T1', maxBitrate: 800*1000 },
@@ -84,7 +84,7 @@ async function config_simulcast(stream, codec) {
 		{rid: 'h', scalabilityMode: 'L1T1', minBitrate: 1800*1000, maxBitrate: 2500*1000 }
 	];
 
-    let transceiver = pc.addTransceiver(stream.getVideoTracks()[0], {
+    let transceiver = pc.addTransceiver(track, {
 		direction: 'sendonly',
 		sendEncodings: send_encodings
 	});
