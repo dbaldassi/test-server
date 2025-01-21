@@ -185,12 +185,16 @@ function kill_process(count) {
 	});
 }
 
+const host = "wss://134.59.133.57:9000";
+const protocol = "medooze";
+
 client.on('connectFailed', function(error) {
-	console.log('Connect Error: ' + error.toString());
+    console.log('Connect Error: ' + error.toString());
+    setTimeout(() => client.connect(host, protocol), 5000);
 });
 
 client.on('connect', function(connection) {
-	console.log("Connect");
+	console.log("Connected to monitor");
 	client_connection = connection;
 
 	connection.on('message', (message) => {
@@ -208,9 +212,14 @@ client.on('connect', function(connection) {
 
 		count += 500;
 	}, 500);
+
+    connection.on("close", () => {
+	console.log("Connection to monitor closed");
+	setTimeout(() => client.connect(host, protocol), 5000);
+    });
 });
 
-client.connect('wss://134.59.133.57:9000', 'medooze');
+client.connect(host, protocol);
 
 //Try to clean up on exit
 const onExit = (e) => {
