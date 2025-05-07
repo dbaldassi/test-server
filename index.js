@@ -47,6 +47,7 @@ const handlers = {
 	"quic-relay-loopback"	: require("./lib/quic-relay-loopback.js"),
 	"port"	                : require("./lib/port.js"),
 	"vm-relay"	        : require("./lib/vm-relay.js"),
+	"vm-visio"	        : require("./lib/vm-visio.js"),
 };
 
 let client = new WebSocketClient({ tlsOptions: { rejectUnauthorized: false }});
@@ -118,6 +119,29 @@ function get_cpu_usage(count, connection) {
 
 		connection.sendUTF(JSON.stringify(obj));		
 	});
+}
+
+function get_free_cmd(count, connection) {
+    exec("free | head -n2 | tail -n1 | awk '{print $2\" \"$3\" \"$6}'", (err, output) => {
+	if(err) {
+	    console.error("ERROR : ", err);
+	    return;
+	}
+
+	stats = output.split(" ").map((x) => parseInt(x) / 1024);
+	
+	let obj = {
+	    cmd : "free_stats",
+	    stats : {
+		"time": count,
+		"free_total": stats[0],
+		"free_used": stats[1],
+		"free_buffcache": stats[2]
+	    }
+	}
+
+	connection.sendUTF(JSON.stringify(obj));
+    });
 }
 
 function get_iplink_stats(count, connection) {
@@ -209,7 +233,8 @@ client.on('connect', function(connection) {
 	setInterval(function() {
 		get_cpu_usage(count, connection);
 		get_iplink_stats(count, connection);
-
+                get_free_cmd(count, connection);
+	    
 		count += 500;
 	}, 500);
 

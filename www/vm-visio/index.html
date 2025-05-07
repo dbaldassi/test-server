@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VM Visio</title>
+    <style>
+        body {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+        }
+        video {
+            width: 30%;
+            height: auto;
+            background: black;
+        }
+    </style>
+</head>
+<body>
+    <!-- Local participant video -->
+    <video id="localVideo" autoplay muted></video>
+    <!-- Remote participants videos -->
+    <video id="remoteVideo1" autoplay></video>
+    <video id="remoteVideo2" autoplay></video>
+    <video id="remoteVideo3" autoplay></video>
+    <video id="remoteVideo4" autoplay></video>
+    <video id="remoteVideo5" autoplay></video>
+
+    <script src="index.js"></script>
+</body>
+</html>
