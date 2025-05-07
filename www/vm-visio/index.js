@@ -10,6 +10,10 @@ const remoteVideos = [
     document.getElementById("remoteVideo5"),
 ];
 
+const href = new URL(window.location.href);
+// get URL parameters  
+const viewOnly = href.searchParams.has("viewOnly");
+
 let localStream;
 let localId;
 let peerConnections = {};
@@ -34,11 +38,21 @@ function initWebSocket() {
         } else if (data.cmd === "create") {
             ws.send(JSON.stringify({ cmd: "join", roomId }));
         } else if (data.cmd === "join") {
+            if(!data.success) console.error.error(data.message);
             localId = data.id;
             console.log("Joined room with ID:", localId, data);
-            publish();
+            if(!viewOnly) publish();
         } else if (data.cmd === "new_publisher") {
             subscribe(data.id);
+        } else if(data.cmd === "remove_participant") {
+            console.log("Participant left:", data.id);
+            const pc = peerConnections[data.id];
+            if (pc) {
+                pc.close();
+                pc.remoteVideo.srcObject = null;
+                pc.remoteVideo = null;
+                delete peerConnections[data.id];
+            }
         }
     };
 
@@ -88,6 +102,7 @@ function subscribe(participantId) {
         if (remoteVideo) {
             console.log("ON TRACK", localId);
             remoteVideo.srcObject = event.streams[0];
+            pc.remoteVideo  = remoteVideo;
         }
     };
 
@@ -119,7 +134,9 @@ async function handleAnswer(answer, participantId) {
 
 // Initialiser l'application
 async function init() {
-    await initLocalStream();
+    if(!viewOnly) await initLocalStream();
+    else remoteVideos.unshift(localVideo);
+
     initWebSocket();
 }
 
