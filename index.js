@@ -8,7 +8,7 @@ const WebSocketClient  = require ("websocket").client;
 const os               = require("os");
 const osutils          = require("os-utils");
 const ChildProcess     = require('child_process');
-const { exec } = require('node:child_process')
+const { exec, execSync } = require('node:child_process')
 
 //Get the Medooze Media Server interface
 const MediaServer = require("medooze-media-server");
@@ -17,10 +17,15 @@ const PORT = 8084;
 const letsencrypt = false;
 
 //Check 
-if (process.argv.length!=3)
-	 throw new Error("Missing IP address\nUsage: node index.js <ip>");
+if (process.argv.length!=2)
+    throw new Error("Missing IP address\nUsage: node index.js");
+
+const out = execSync("ip -4 -o addr show dev enp8s0 | awk '{print $4}' | cut -d'/' -f1", { shell : true }); 
 //Get ip
-const ip = process.argv[2];
+// const ip = process.argv[2];
+
+const ip = out.toString().trim();
+console.log("IP : ", ip);
 
 //Restrict port range
 MediaServer.setPortRange(10000,10100);
